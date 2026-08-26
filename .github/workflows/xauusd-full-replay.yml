@@ -1,0 +1,26 @@
+name: XAUUSD Full M1 Replay
+on:
+  push:
+    branches:
+      - chatgpt-xauusd-replay-20260826
+    paths:
+      - '.github/workflows/xauusd-full-replay.yml'
+      - 'xauusd_replay/**'
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --upgrade pip && pip install pandas numpy
+      - name: Run full replay
+        run: bash xauusd_replay/run_action.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-full-replay-results
+          path: xauusd_replay/output/
+          if-no-files-found: error
+          retention-days: 7
