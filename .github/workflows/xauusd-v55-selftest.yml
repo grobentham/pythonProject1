@@ -22,7 +22,7 @@ jobs:
         run: python -m compileall -q xauusd_v55
       - name: Run complete V5.5 regression suite
         working-directory: xauusd_v55
-        run: python -m unittest -v test_v55_certification.py test_v55_hardening.py
+        run: python -m unittest -v test_v55_certification.py test_v55_hardening.py test_v55_retrospective_evidence.py
       - name: Prove policy remains non-authorizing
         working-directory: xauusd_v55
         run: |
