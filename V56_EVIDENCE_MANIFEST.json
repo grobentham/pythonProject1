@@ -65,6 +65,51 @@
     "negative_closed_tickets": 432,
     "ambiguous_fail_closed": 27
   },
+  "blueberry_date_aligned_public_m1_proxy": {
+    "classification": "BLUEBERRY_DATE_ALIGNED_PUBLIC_M1_PROXY_NOT_BLUEBERRY_TICK_CERTIFICATION",
+    "boundary_utc": "2024-12-17T06:39:39.055Z",
+    "workflow_head": "20a8cea186aac56b05f7bd08e96a58de1ff5d991",
+    "workflow_run_id": 33113405571,
+    "artifact_id": 9663482512,
+    "artifact_zip_sha256": "804f595c6805888d0b470320e7ae77fdc06ea756b5fdcf02bf952cf66aad160e",
+    "combined_summary_sha256": "f5aadb46e88a06ace20be4a3443e4849b64fde2cc030d62b5e79da9f3628d7da",
+    "signals_at_or_after_boundary": 3316,
+    "first_included_signal_utc": "2024-12-17T07:05:12Z",
+    "management_rows_linked_at_or_after_boundary": 2342,
+    "management_rows_inside_public_m1": 2313,
+    "raw_lane": {
+      "starting_balance_sgd": 1000.0,
+      "ending_cash_sgd_proxy": 6.8165079364930365,
+      "loss_sgd_proxy": 993.183492063507,
+      "loss_pct": 99.3183492063507,
+      "first_margin_warning_80_utc": "2025-05-09T13:18:00Z",
+      "stopout_50_seen": false,
+      "technical_survival_flag": true,
+      "economic_survival_interpretation": "NO_NEAR_TOTAL_CAPITAL_LOSS_AND_3584_INSUFFICIENT_MARGIN_REJECTIONS",
+      "canonical_tickets_armed": 6568,
+      "filled_tickets": 863,
+      "insufficient_free_margin_rejections": 3584,
+      "positive_closed_tickets": 340,
+      "negative_closed_tickets": 514,
+      "ambiguous_fail_closed": 55
+    },
+    "risk10_lane": {
+      "starting_balance_sgd": 1000.0,
+      "ending_cash_sgd_proxy": 806.8177777777717,
+      "loss_sgd_proxy": 193.1822222222283,
+      "loss_pct": 19.31822222222283,
+      "margin_warning_80_seen": false,
+      "stopout_50_seen": false,
+      "account_survived": true,
+      "candidate_tickets_considered": 6568,
+      "tickets_accepted_at_arm": 369,
+      "tickets_risk_rejected_at_arm": 6199,
+      "filled_tickets": 219,
+      "positive_closed_tickets": 98,
+      "negative_closed_tickets": 121,
+      "ambiguous_fail_closed": 6
+    }
+  },
   "blueberry_history": {
     "symbol": "XAUUSD.i",
     "account_currency": "SGD",
@@ -81,7 +126,9 @@
     "canonical_software_regression": "PASS",
     "public_m1_raw_provider_survival": "FAIL",
     "public_m1_risk10_survival": "PASS_SURVIVAL_BUT_LOSS_MAKING",
-    "profitability": "NOT_ESTABLISHED_NEGATIVE_IN_TESTED_LANES",
+    "blueberry_date_aligned_raw_proxy": "TECHNICALLY_SURVIVED_BUT_ECONOMICALLY_NEAR_WIPEOUT",
+    "blueberry_date_aligned_risk10_proxy": "PASS_SURVIVAL_BUT_LOSS_MAKING",
+    "profitability": "NOT_ESTABLISHED_NEGATIVE_IN_ALL_TESTED_RELEVANT_LANES",
     "blueberry_coverage_only_v56_replay": "BLOCKED_RUNTIME_DATA_ACCESS",
     "live_ready": "NO"
   }
