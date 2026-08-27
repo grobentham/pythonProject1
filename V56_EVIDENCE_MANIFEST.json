@@ -1,0 +1,88 @@
+{
+  "schema": "XAUUSD_V56_CANONICAL_EVIDENCE_MANIFEST_V1",
+  "branch": "xauusd-v5.6-provider-canonical",
+  "historical_research_only": true,
+  "real_orders": false,
+  "live_ready": false,
+  "canonical_interpretation": {
+    "normal_zone": "TWO_BOUNDARY_TICKETS_NO_SYNTHETIC_MIDPOINT",
+    "single_tp": "SINGLE_FINAL_TP_WITH_DYNAMIC_PROVIDER_MANAGEMENT",
+    "or_choice_primary": "CLOSE_ALL",
+    "ambiguous_scope": "FAIL_CLOSED",
+    "small_lot": "BLUEBERRY_MIN_0_01"
+  },
+  "frozen_compact_inputs": {
+    "signals_compressed_sha256": "f472ccad02aaef9c3a18f511263b35e3e0d8d1b0c9dc43a637f535df4ea705ad",
+    "signals": 5275,
+    "buy": 3199,
+    "sell": 2076,
+    "management_compressed_sha256": "0b05c33cf080c6ee532658f408a069a5bced789e8a61403c8f88410835404090",
+    "management_rows_decoded": 3688,
+    "management_rows_inside_public_m1": 3659
+  },
+  "public_m1": {
+    "bars": 1721213,
+    "first_utc": "2023-05-01T00:00:00Z",
+    "last_utc": "2026-08-20T23:58:00Z",
+    "source_class": "DUKASCOPY_DERIVED_SEPARATE_BID_ASK_M1",
+    "blueberry_ticks": false
+  },
+  "raw_provider_causal_survival": {
+    "version": "V5.6_PUBLIC_M1_CAUSAL_ACCOUNT_SURVIVAL_V2",
+    "implementation_commit": "e306a27a7fff8c8a0995c759ad4f230babc60afd",
+    "workflow_run_id": 33112760431,
+    "artifact_id": 9663217865,
+    "artifact_zip_sha256": "9299819050efd816302595afff33f430605d97f8cb935050fbc36bbc43074e5d",
+    "starting_balance_sgd": 1000.0,
+    "first_margin_warning_80_utc": "2024-06-14T13:40:00Z",
+    "stopout_50_utc": "2024-06-17T06:39:00Z",
+    "cash_after_forced_liquidation_sgd_proxy": 2.7644444444317156,
+    "account_survived": false,
+    "tickets_armed_before_termination": 2158,
+    "filled_tickets": 1510,
+    "positive_closed_tickets": 517,
+    "negative_closed_tickets": 916,
+    "ambiguous_fail_closed": 49
+  },
+  "risk10_secondary_survival": {
+    "version": "V5.6_PUBLIC_M1_RISK10_SURVIVAL_V1",
+    "workflow_head": "72678a36982bd193d38769ddb418953193b0d648",
+    "workflow_run_id": 33112923269,
+    "artifact_id": 9663288257,
+    "artifact_zip_sha256": "4df9574c42bd14dc20033d1e760ce0df20d81e1a052909678f839f030a0cd589",
+    "starting_balance_sgd": 1000.0,
+    "ending_cash_sgd_proxy": 557.7942857142659,
+    "loss_sgd_proxy": 442.2057142857341,
+    "loss_pct": 44.22057142857341,
+    "margin_warning_80_seen": false,
+    "stopout_50_seen": false,
+    "account_survived": true,
+    "candidate_tickets_considered": 10486,
+    "tickets_accepted_at_arm": 1041,
+    "tickets_risk_rejected_at_arm": 9445,
+    "filled_tickets": 747,
+    "positive_closed_tickets": 266,
+    "negative_closed_tickets": 432,
+    "ambiguous_fail_closed": 27
+  },
+  "blueberry_history": {
+    "symbol": "XAUUSD.i",
+    "account_currency": "SGD",
+    "leverage": 500,
+    "min_lot": 0.01,
+    "tick_coverage_first_utc": "2024-12-17T06:39:39.055Z",
+    "tick_coverage_last_utc": "2026-08-25T23:58:59.832Z",
+    "tick_file_count": 435,
+    "full_2023_2026_certification_possible": false,
+    "coverage_only_v56_replay_status": "BLOCKED_RUNTIME_DATA_ACCESS"
+  },
+  "evidence_state": {
+    "provider_language_canonical": "PASS",
+    "canonical_software_regression": "PASS",
+    "public_m1_raw_provider_survival": "FAIL",
+    "public_m1_risk10_survival": "PASS_SURVIVAL_BUT_LOSS_MAKING",
+    "profitability": "NOT_ESTABLISHED_NEGATIVE_IN_TESTED_LANES",
+    "blueberry_coverage_only_v56_replay": "BLOCKED_RUNTIME_DATA_ACCESS",
+    "live_ready": "NO"
+  }
+}
