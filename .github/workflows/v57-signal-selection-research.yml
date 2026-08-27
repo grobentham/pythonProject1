@@ -1,0 +1,80 @@
+name: V5.7 Causal Signal Selection Research
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - xauusd-v5.7-signal-selection-research
+    paths:
+      - 'v57_signal_selection_research.py'
+      - 'V57_SIGNAL_SELECTION_RESEARCH_PROTOCOL.md'
+      - '.github/workflows/v57-signal-selection-research.yml'
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check pandas numpy scikit-learn
+      - name: Reconstruct frozen provider inputs
+        run: |
+          git fetch origin chatgpt-xauusd-replay-20260826:refs/remotes/origin/replay-input
+          git checkout refs/remotes/origin/replay-input -- xauusd_replay
+          python - <<'PY'
+          import base64,gzip,pathlib,hashlib
+          root=pathlib.Path('xauusd_replay')
+          sig=[f'signals_{i:02d}.b64part' for i in range(4)]+['signals_04a.b64part','signals_04b.b64part','signals_04c.b64part','signals_05.b64part']
+          mg=['management_00.b64part','management_01.b64part','management_02.b64part']
+          def d(names,dst,sha):
+              raw=base64.b64decode(''.join((root/n).read_text().strip() for n in names),validate=True)
+              got=hashlib.sha256(raw).hexdigest(); assert got==sha,(dst,got)
+              (root/dst).write_bytes(gzip.decompress(raw)); print(dst,got)
+          d(sig,'signals.csv','f472ccad02aaef9c3a18f511263b35e3e0d8d1b0c9dc43a637f535df4ea705ad')
+          d(mg,'management_compact.csv','0b05c33cf080c6ee532658f408a069a5bced789e8a61403c8f88410835404090')
+          PY
+      - name: Download public M1 Bid Ask dataset
+        run: |
+          python - <<'PY'
+          from concurrent.futures import ThreadPoolExecutor,as_completed
+          import pathlib,time,urllib.request
+          root=pathlib.Path('xauusd_replay/data')
+          for s in ('bid','ask'):(root/s).mkdir(parents=True,exist_ok=True)
+          months=[];y,m=2023,5
+          while (y,m)<=(2026,8):
+              months.append((y,m));m+=1
+              if m==13:y+=1;m=1
+          jobs=[(f'https://raw.githubusercontent.com/kevingtlin/Market-Data-Lab/main/xauusd/{s}/m1/xauusd_{s}_m1_{y:04d}_{m:02d}.csv',root/s/f'xauusd_{s}_m1_{y:04d}_{m:02d}.csv') for s in ('bid','ask') for y,m in months]
+          def get(j):
+              url,out=j
+              for k in range(5):
+                  try:
+                      urllib.request.urlretrieve(url,out)
+                      if out.stat().st_size<1000: raise RuntimeError('small')
+                      return out.stat().st_size
+                  except Exception:
+                      if k==4: raise
+                      time.sleep(2*(k+1))
+          total=0
+          with ThreadPoolExecutor(max_workers=8) as ex:
+              for i,f in enumerate(as_completed([ex.submit(get,j) for j in jobs]),1):
+                  total+=f.result()
+                  if i%20==0 or i==len(jobs): print('downloaded',i,'bytes',total,flush=True)
+          PY
+      - name: Compile research engine
+        run: python -m py_compile v57_signal_selection_research.py
+      - name: Run V5.7 preregistered study
+        run: python v57_signal_selection_research.py
+      - name: Show result
+        run: cat xauusd_replay/v57_signal_selection/summary.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V57_CAUSAL_SIGNAL_SELECTION_RESEARCH
+          path: xauusd_replay/v57_signal_selection/
+          retention-days: 14
