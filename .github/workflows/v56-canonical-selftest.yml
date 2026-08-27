@@ -1,0 +1,48 @@
+name: V5.6 Canonical Provider Self Test
+
+on:
+  push:
+    branches:
+      - xauusd-v5.6-provider-canonical
+  workflow_dispatch:
+
+jobs:
+  canonical-selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependency
+        run: python -m pip install --disable-pip-version-check numpy==1.26.4
+      - name: Compile canonical modules
+        run: |
+          python -m py_compile v53_policy.py
+          python -m py_compile v53_engine.py
+          python -m py_compile v53_engine_patch.py
+          python -m py_compile v56_canonical_policy.py
+          python -m py_compile v56_engine.py
+          python -m py_compile replay_blueberry_telegram_v5_6_canonical.py
+          python -m py_compile test_v53_policy.py
+          python -m py_compile test_v53_layered_intended.py
+          python -m py_compile test_v56_canonical.py
+      - name: Legacy V5.3 semantic regression
+        run: python test_v53_policy.py
+      - name: Legacy execution-mechanics regression
+        run: python test_v53_layered_intended.py
+      - name: V5.6 canonical provider interpretation
+        run: python test_v56_canonical.py
+      - name: Non-authorizing assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from v56_canonical_policy import OR_PRIMARY_POLICY
+          assert OR_PRIMARY_POLICY == 'CLOSE_ALL'
+          spec = Path('PROVIDER_LANGUAGE_CANONICAL_V5_6.md').read_text(encoding='utf-8')
+          assert 'real_orders = false' in spec
+          assert 'live_ready = false' in spec
+          assert 'two boundary tickets only' in spec.lower()
+          assert 'No synthetic midpoint' in spec
+          print('V5.6 non-authorizing/canonical freeze assertions PASS')
+          PY
