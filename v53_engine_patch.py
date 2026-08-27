@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import math
+import re
 from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
-from v53_policy import as_float, getv, instruction_kind, list_floats, round_no, setup_uid
+from v53_policy import as_float, getv, instruction_kind, instruction_text, list_floats, round_no, setup_uid
 
 
 def apply_v53_integrity_patch(engine_cls):
     original_apply = engine_cls._apply_instruction
     original_set_sl = engine_cls._set_sl
+    original_handle_target = engine_cls._handle_target
     original_replay = engine_cls.replay
 
     def set_targets(self, ins, ms):
@@ -83,11 +85,67 @@ def apply_v53_integrity_patch(engine_cls):
                     self.rejections["SL_AMEND_WOULD_BREACH_RESERVED_RISK"] += 1
                     self.audit.append({"time_ms": ms, "event": "SL_AMEND_ROLLBACK_RISK_CAP", "reserved_risk_sgd": reserved, "cap_sgd": cap})
 
+    def patched_handle_target(self, key, ms, bid, ask):
+        """Record the automatic TP1 lifecycle so its later Telegram confirmation is idempotent."""
+        state = self.round_state.setdefault(key, {"stage": 0})
+        before_stage = int(state.get("stage", 0) or 0)
+        before_open = len(self._round_open(key))
+        original_handle_target(self, key, ms, bid, ask)
+        state = self.round_state.setdefault(key, {"stage": 0})
+        after_stage = int(state.get("stage", 0) or 0)
+        after_open = len(self._round_open(key))
+        if before_stage == 0 and after_stage >= 1:
+            state["tp1_auto_transition_ms"] = int(ms)
+            state["tp1_auto_closed_count"] = max(0, before_open - after_open)
+            state["tp1_confirmation_partial_consumed"] = False
+
+    def _combined_partial_be_confirmation(ins):
+        text = instruction_text(ins).lower()
+        if not text:
+            return False
+        partial = bool(re.search(r"\bclose\s*(?:1\s*/\s*2|half|50\s*%)\b", text))
+        be = bool(
+            re.search(r"\b(?:break\s*even|breakeven)\b", text)
+            or re.search(r"\b(?:sl|stl|stop\s*loss|stoploss)\b.{0,24}\b(?:to\s+)?entry\b", text)
+            or re.search(r"\bmove\b.{0,24}\b(?:sl|stl|stop\s*loss|stoploss)\b.{0,24}\bentry\b", text)
+        )
+        return partial and be
+
     def patched_apply(self, ins, bid, ask):
         kind = instruction_kind(ins)
         if any(token in kind for token in ("SET_TP", "SET_TPS", "TP_AMEND", "TARGET_AMEND")):
             set_targets(self, ins, int(getv(ins, "effective_ms", "time_ms", default=0) or 0))
             return
+
+        # Provider-language V4.1 expands e.g. "Running +30pips Close 1/2 Move SL to Entry"
+        # into RUNNING_STATUS + CLOSE_PARTIAL + MOVE_SL_TO_ENTRY_BE. If price already hit TP1,
+        # the mechanical TP1 transition has already closed the shallow/worst ticket and moved
+        # survivors to their own BE. The first matching Telegram bundle after that event is a
+        # confirmation of the same lifecycle transition, not permission to close a second layer.
+        # A later standalone partial instruction remains executable.
+        if "CLOSE_PARTIAL" in kind or "CLOSE_HALF" in kind:
+            setup = setup_uid(ins)
+            rid = round_no(ins)
+            key = (setup, rid)
+            state = self.round_state.get(key, {})
+            if (
+                setup
+                and state.get("tp1_auto_transition_ms") is not None
+                and int(state.get("stage", 0) or 0) >= 1
+                and not bool(state.get("tp1_confirmation_partial_consumed", False))
+                and _combined_partial_be_confirmation(ins)
+            ):
+                state["tp1_confirmation_partial_consumed"] = True
+                self.counters["provider_partial_tp1_confirmation_suppressed"] += 1
+                self.audit.append({
+                    "time_ms": int(getv(ins, "effective_ms", "time_ms", default=0) or 0),
+                    "event": "PROVIDER_PARTIAL_TP1_CONFIRMATION_IDEMPOTENT",
+                    "setup_uid": setup,
+                    "round_no": rid,
+                    "text": instruction_text(ins),
+                })
+                return
+
         return original_apply(self, ins, bid, ask)
 
     def patched_first_event(self, start_ms, end_ms):
@@ -168,6 +226,7 @@ def apply_v53_integrity_patch(engine_cls):
 
     engine_cls._set_targets_v53 = set_targets
     engine_cls._set_sl = patched_set_sl
+    engine_cls._handle_target = patched_handle_target
     engine_cls._apply_instruction = patched_apply
     engine_cls._first_event = patched_first_event
     engine_cls.replay = patched_replay
