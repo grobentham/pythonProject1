@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from v53_engine import Ticket, V53PortfolioEngine
+from v53_engine_patch import apply_v53_integrity_patch
 
 
 class DummyV2:
@@ -33,11 +34,15 @@ class DummySpec:
 
 
 class DummyTicks:
-    pass
+    def quote_at_or_after(self, ms, tolerance_ms=120_000):
+        return None
+
+
+PatchedEngine = apply_v53_integrity_patch(V53PortfolioEngine)
 
 
 def engine():
-    return V53PortfolioEngine(
+    return PatchedEngine(
         DummyV2(), DummyTicks(), DummyFX(), DummySpec(),
         {"starting_balance_sgd": 1000.0},
     )
@@ -165,6 +170,77 @@ def test_sell_three_fill_ladder_is_symmetric():
 
     e._handle_target(("S1", 1), 3_000, 84.9, 85.0)
     assert e.tickets[2].state == "CLOSED"
+
+
+def test_tp1_then_provider_combined_partial_be_is_idempotent():
+    e = engine()
+    e.round_state[("S1", 1)] = {"targets": [105.0, 110.0, 115.0], "stage": 0}
+    e.tickets = [ticket(1, 100), ticket(2, 98), ticket(3, 96)]
+
+    # Price reaches TP1 first: one layer closes, the two survivors go to own BE.
+    e._handle_target(("S1", 1), 1_000, 105.0, 105.1)
+    assert len(e._round_open(("S1", 1))) == 2
+
+    # Telegram later confirms the same management bundle. CLOSE_PARTIAL must not
+    # remove another layer; the separately-expanded MOVE_BE action remains safe.
+    text = "Running +35pips. Close 1/2. Stoploss to entry"
+    e._apply_instruction(
+        {"kind": "CLOSE_PARTIAL", "setup_uid": "S1", "round_no": 1, "effective_ms": 1_500, "text": text},
+        bid=106.0,
+        ask=106.1,
+    )
+    assert len(e._round_open(("S1", 1))) == 2
+    assert e.counters["provider_partial_tp1_confirmation_suppressed"] == 1
+
+    e._apply_instruction(
+        {"kind": "MOVE_SL_TO_ENTRY_BE", "setup_uid": "S1", "round_no": 1, "effective_ms": 1_500, "text": text},
+        bid=106.0,
+        ask=106.1,
+    )
+    assert len(e._round_open(("S1", 1))) == 2
+    assert all(t.sl == t.fill_price for t in e._round_open(("S1", 1)))
+
+
+def test_later_standalone_partial_after_tp1_still_executes():
+    e = engine()
+    e.round_state[("S1", 1)] = {"targets": [105.0, 110.0, 115.0], "stage": 0}
+    e.tickets = [ticket(1, 100), ticket(2, 98), ticket(3, 96)]
+    e._handle_target(("S1", 1), 1_000, 105.0, 105.1)
+
+    # First consume the confirmation-equivalent bundle.
+    e._apply_instruction(
+        {"kind": "CLOSE_PARTIAL", "setup_uid": "S1", "round_no": 1, "effective_ms": 1_500,
+         "text": "Running +35pips Close 1/2 Stoploss to entry"},
+        bid=106.0,
+        ask=106.1,
+    )
+    assert len(e._round_open(("S1", 1))) == 2
+
+    # A genuinely later standalone close-half remains an executable provider override.
+    e._apply_instruction(
+        {"kind": "CLOSE_PARTIAL", "setup_uid": "S1", "round_no": 1, "effective_ms": 2_500,
+         "text": "Secure more profit - close 1/2"},
+        bid=108.0,
+        ask=108.1,
+    )
+    assert len(e._round_open(("S1", 1))) == 1
+    assert sum(t.exit_reason.startswith("PROVIDER_PARTIAL") for t in e.tickets) == 1
+
+
+def test_provider_partial_before_tp1_is_not_suppressed():
+    e = engine()
+    e.round_state[("S1", 1)] = {"targets": [105.0, 110.0, 115.0], "stage": 0}
+    e.tickets = [ticket(1, 100), ticket(2, 98), ticket(3, 96)]
+
+    e._apply_instruction(
+        {"kind": "CLOSE_PARTIAL", "setup_uid": "S1", "round_no": 1, "effective_ms": 500,
+         "text": "Running +35pips Close 1/2 Stoploss to entry"},
+        bid=103.0,
+        ask=103.1,
+    )
+    # CEIL_HALF on three indivisible 0.01 tickets closes two tickets.
+    assert len(e._round_open(("S1", 1))) == 1
+    assert e.counters["provider_partial_tp1_confirmation_suppressed"] == 0
 
 
 if __name__ == "__main__":
