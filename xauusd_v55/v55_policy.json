@@ -1,0 +1,137 @@
+{
+  "schema": "XAUUSD_V55_FORENSIC_CERTIFICATION_POLICY_V1",
+  "release": "V5.5",
+  "status": "PREREGISTERED_CERTIFICATION_OVERLAY_NO_LIVE_AUTHORIZATION",
+  "prospective_boundary_utc": "2026-08-27T16:36:49Z",
+  "parent_release": {
+    "name": "XAUUSD_PROVIDER_FAITHFUL_V5_4_BLUEBERRY_TICK_TRUTH_SURVIVAL_GATE.zip",
+    "sha256": "5f98d370cbefc25c77422228405df3028fbe77a7da188c7706e283875603b97c",
+    "must_be_supplied_separately": true
+  },
+  "frozen_provider_plan": {
+    "strategy_mutation_authorized": false,
+    "provider_interpretation_mutation_authorized": false,
+    "expected_counts": {
+      "setups": 6368,
+      "rounds": 7623,
+      "instructions": 15229,
+      "armed_rounds": 5723,
+      "reentry_rounds": 1267,
+      "compiler_fail_closed_events": 405
+    },
+    "artifact_sha256": {
+      "provider_execution_instruction_ledger.csv": "e0402d9f9cb0f2fbd091ad1dd3e4fdd1ca90ba155326753492140c16252301ef",
+      "provider_round_plan.csv": "d7103411b054c2dbdb318dc1c8886059f700c425bf448699747706d67e4e8db3",
+      "provider_compile_audit.csv": "0836176bccf2acf1071fd7d413eac5e1092398fcb2867a52060af50429788191"
+    }
+  },
+  "execution": {
+    "real_orders": false,
+    "order_authorization": false,
+    "demo_order_authorization": false,
+    "read_only_broker_probe_only": true,
+    "bid_ask_required": true,
+    "latency_grid_seconds": [0, 1, 2, 5, 10, 30],
+    "latency_selection_after_outcomes_prohibited": true,
+    "first_executable_quote_rule": "QUOTE_TIMESTAMP_GTE_MESSAGE_OBSERVED_TIMESTAMP_PLUS_FIXED_LATENCY",
+    "pre_message_quote_prohibited": true,
+    "same_timestamp_precedence": [
+      "BROKER_STOP_OUT",
+      "SERVER_STOP_LOSS",
+      "SERVER_TAKE_PROFIT",
+      "PENDING_FILL",
+      "PROVIDER_MANAGEMENT",
+      "NEW_ENTRY_ARM"
+    ],
+    "stop_gap_rule": "FIRST_EXECUTABLE_ADVERSE_BID_ASK_AFTER_TRIGGER",
+    "margin_call_warning_pct": 80.0,
+    "margin_call_forced_liquidation": false,
+    "stop_out_pct": 50.0,
+    "stop_out_forced_liquidation": true
+  },
+  "small_account_projection": {
+    "name": "SGD100_INDIVISIBLE_001_PROJECTION_V1",
+    "starting_balance_sgd": 100.0,
+    "volume_lot": 0.01,
+    "max_active_setups_including_pending": 1,
+    "overlap_policy": "FIRST_CHRONOLOGICALLY_ELIGIBLE_SETUP_WINS",
+    "overlap_rejection_code": "OPPORTUNITY_REJECTED_ACTIVE_SETUP",
+    "layering": false,
+    "martingale": false,
+    "lot_escalation_after_loss": false,
+    "max_reserved_stop_risk_fraction": 0.05,
+    "minimum_free_margin_fraction_after_fill": 0.60,
+    "hard_drawdown_fraction": 0.15,
+    "drawdown_reference": "HIGH_WATER_MARK",
+    "max_consecutive_losses": 3,
+    "break_even_resets_loss_streak": false,
+    "partial_close_when_001_indivisible": "FULL_CLOSE_SMALL_ACCOUNT_PROJECTION",
+    "first_provider_profit_taking_event": "FULL_CLOSE_INDIVISIBLE_001",
+    "multi_tp_optimization_after_outcomes_prohibited": true,
+    "policy_is_provider_projection_not_exact_provider_replication": true
+  },
+  "broker_evidence": {
+    "expected_account_currency": "SGD",
+    "expected_symbol": "XAUUSD.i",
+    "expected_contract_size": 100.0,
+    "expected_volume_min": 0.01,
+    "expected_volume_step": 0.01,
+    "expected_leverage": 500,
+    "historical_tick_coverage_known_start_utc": "2024-12-17T06:39:39.055Z",
+    "historical_tick_coverage_known_end_utc": "2026-08-25T23:58:59.832Z",
+    "telegram_history_known_start_utc": "2023-05-05T00:00:00Z",
+    "static_zero_tick_value_may_not_be_used_as_profit_model": true,
+    "static_zero_margin_may_not_be_used_as_margin_model": true,
+    "current_mt5_order_calc_profit_is_current_environment_only": true,
+    "current_mt5_order_calc_margin_is_current_environment_only": true,
+    "commission_must_be_account_evidenced": true,
+    "swap_must_be_historical_or_explicitly_uncertain": true,
+    "sgd_conversion_must_be_causal": true
+  },
+  "semantic_certification": {
+    "minimum_human_labeled_messages": 200,
+    "maximum_false_execution_count": 0,
+    "global_management_scope_must_be_explicit": true,
+    "ambiguous_scope_policy": "FAIL_CLOSED_NO_EXECUTION"
+  },
+  "tick_certification": {
+    "require_file_hashes": true,
+    "require_bid_ask": true,
+    "fail_on_nonpositive_bid_ask": true,
+    "fail_on_crossed_quote_ask_below_bid": true,
+    "fail_on_nonmonotonic_timestamp_within_file": true,
+    "report_duplicates": true,
+    "report_large_gaps_without_automatically_calling_them_corruption": true,
+    "require_explicit_covered_uncovered_signal_ledger": true
+  },
+  "durability": {
+    "sqlite_wal": true,
+    "instruction_idempotency_unique": true,
+    "same_key_different_payload": "FAIL_CLOSED_IDEMPOTENCY_COLLISION",
+    "state_mutation_and_idempotency_commit_atomic": true,
+    "crash_injection_tests_required": true,
+    "dedicated_account_invariant": true,
+    "unexpected_position_order_or_cash_change_blocks_new_exposure": true
+  },
+  "monte_carlo": {
+    "iid_ticket_shuffle_prohibited_for_promotion": true,
+    "day_block_bootstrap_required": true,
+    "preserve_within_day_trade_clustering": true,
+    "diagnostic_only": true
+  },
+  "prospective_gate": {
+    "minimum_primary_setups": 100,
+    "minimum_active_days": 30,
+    "minimum_calendar_days": 30,
+    "maximum_integrity_breaks": 0,
+    "maximum_reconciliation_failures": 0,
+    "retrospective_results_cannot_satisfy_prospective_gate": true,
+    "no_tuning_from_prospective_outcomes": true
+  },
+  "allowed_release_states": [
+    "RESEARCH_ENGINE_CERTIFICATION_INCOMPLETE",
+    "HISTORICAL_REPLAY_CERTIFIED_RETROSPECTIVE_ONLY",
+    "PROSPECTIVE_SHADOW_CERTIFIED"
+  ],
+  "live_ready_state_exists": false
+}
