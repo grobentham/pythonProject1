@@ -1,0 +1,52 @@
+name: V5.8 Signal Intelligence Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - xauusd-v5.8-signal-intelligence-gate
+    paths:
+      - 'v58_signal_intelligence_gate.py'
+      - 'v58_context_builder.py'
+      - 'test_v58_signal_intelligence_gate.py'
+      - 'test_v58_context_builder.py'
+      - 'V58_SIGNAL_INTELLIGENCE_GATE_PROTOCOL.md'
+      - '.github/workflows/v58-signal-intelligence-gate.yml'
+
+jobs:
+  gate-certification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile V5.8 modules
+        run: python -m py_compile v58_signal_intelligence_gate.py v58_context_builder.py test_v58_signal_intelligence_gate.py test_v58_context_builder.py
+      - name: Run V5.8 gate tests
+        run: python test_v58_signal_intelligence_gate.py
+      - name: Run V5.8 context-builder tests
+        run: python test_v58_context_builder.py
+      - name: Regression - provider semantics remain frozen
+        run: |
+          python test_v53_policy.py
+          python test_v53_layered_intended.py
+          python test_v56_canonical.py
+          python test_v56_hardening.py
+      - name: Non-authorizing source assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          files = [Path('v58_signal_intelligence_gate.py'), Path('v58_context_builder.py')]
+          text = '\n'.join(p.read_text(encoding='utf-8') for p in files)
+          forbidden = [
+              'mt5.order_send', 'order_send(', 'real_orders = True', 'real_orders=True',
+              'order_authorization = True', 'order_authorization=True',
+          ]
+          for token in forbidden:
+              assert token not in text, f'forbidden live-order token found: {token}'
+          print('V5.8 NON_AUTHORIZING ASSERTIONS PASS')
+          PY
