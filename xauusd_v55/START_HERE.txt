@@ -1,0 +1,24 @@
+XAUUSD PROVIDER-FAITHFUL V5.5 — FORENSIC EXECUTION CERTIFICATION & PROSPECTIVE LOCK
+
+THIS PACKAGE IS A NON-AUTHORIZING CERTIFICATION OVERLAY FOR V5.4.
+IT DOES NOT PLACE REAL OR DEMO ORDERS.
+
+Parent V5.4 required SHA-256:
+5f98d370cbefc25c77422228405df3028fbe77a7da188c7706e283875603b97c
+
+Prospective boundary:
+2026-08-27T17:30:00Z
+No event before that boundary can satisfy the prospective evidence gate.
+
+FIRST:
+1. Run RUN_V55_SELFTEST.bat
+2. Keep the V5.4 parent ZIP available separately.
+3. Run RUN_V55_MT5_READONLY_PROBE.bat only while your Blueberry MT5 is open/logged in if you want a current broker calibration snapshot.
+4. Use RUN_V55_CERTIFICATION.bat with the required evidence paths once the Blueberry tick archive, provider signal ledger, broker snapshots, and >=200 genuinely human-labelled provider messages are ready.
+
+IMPORTANT:
+- A passing software self-test does NOT mean the Telegram provider is profitable.
+- A passing reference execution microcase does NOT prove the entire V5.4 parent engine has identical integration behavior.
+- Current MT5 order_calc_profit/order_calc_margin evidence is current-environment calibration only, not historical truth.
+- Tick coverage before 2024-12-17 remains unavailable in the known Blueberry export and must be labelled uncovered.
+- V5.5 contains no LIVE_READY state and no order authorization.
