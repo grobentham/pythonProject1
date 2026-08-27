@@ -20,9 +20,9 @@ jobs:
           python-version: '3.12'
       - name: Compile certification source
         run: python -m compileall -q xauusd_v55
-      - name: Run V5.5 standard-library regression suite
+      - name: Run complete V5.5 regression suite
         working-directory: xauusd_v55
-        run: python -m unittest -v test_v55_certification.py
+        run: python -m unittest -v test_v55_certification.py test_v55_hardening.py
       - name: Prove policy remains non-authorizing
         working-directory: xauusd_v55
         run: |
@@ -31,7 +31,38 @@ jobs:
           p=json.load(open('v55_policy.json', encoding='utf-8'))
           assert p['execution']['real_orders'] is False
           assert p['execution']['order_authorization'] is False
+          assert p['execution']['demo_order_authorization'] is False
           assert p['live_ready_state_exists'] is False
           assert p['frozen_provider_plan']['strategy_mutation_authorized'] is False
+          assert p['frozen_provider_plan']['provider_interpretation_mutation_authorized'] is False
+          assert p['prospective_gate']['preboundary_events_rejected'] is True
           print('V5.5 NON-AUTHORIZING POLICY: PASS')
           PY
+      - name: Build sealed V5.5 overlay artifact
+        run: |
+          python - <<'PY'
+          import hashlib, json, pathlib, zipfile
+          root=pathlib.Path('xauusd_v55')
+          out=pathlib.Path('XAUUSD_PROVIDER_FAITHFUL_V5_5_FORENSIC_CERTIFICATION_OVERLAY.zip')
+          files=sorted(p for p in root.rglob('*') if p.is_file() and '__pycache__' not in p.parts)
+          manifest=[]
+          for p in files:
+              h=hashlib.sha256(p.read_bytes()).hexdigest()
+              manifest.append({'path':str(p.relative_to(root)).replace('\\','/'),'sha256':h,'size':p.stat().st_size})
+          manifest_obj={'schema':'V55_BUILD_MANIFEST_V1','files':manifest}
+          (root/'V55_BUILD_MANIFEST.json').write_text(json.dumps(manifest_obj,indent=2),encoding='utf-8')
+          files=sorted(p for p in root.rglob('*') if p.is_file() and '__pycache__' not in p.parts)
+          with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
+              for p in files:
+                  z.write(p, arcname=str(pathlib.Path('xauusd_v55')/p.relative_to(root)).replace('\\','/'))
+          digest=hashlib.sha256(out.read_bytes()).hexdigest()
+          pathlib.Path(str(out)+'.sha256').write_text(f'{digest}  {out.name}\n',encoding='utf-8')
+          print('artifact',out,'sha256',digest)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: XAUUSD_PROVIDER_FAITHFUL_V5_5_FORENSIC_CERTIFICATION_OVERLAY
+          path: |
+            XAUUSD_PROVIDER_FAITHFUL_V5_5_FORENSIC_CERTIFICATION_OVERLAY.zip
+            XAUUSD_PROVIDER_FAITHFUL_V5_5_FORENSIC_CERTIFICATION_OVERLAY.zip.sha256
+          if-no-files-found: error
