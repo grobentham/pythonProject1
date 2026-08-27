@@ -1,0 +1,77 @@
+{
+  "schema": "XAUUSD_V55_RETROSPECTIVE_BLUEBERRY_FIXED_DEPTH_CHECKPOINT_V1",
+  "classification": "RETROSPECTIVE_BROKER_TICK_EVIDENCE_NOT_PROSPECTIVE",
+  "generated_utc": "2026-08-27T17:35:06Z",
+  "source_bundle": {
+    "name": "XAUUSD_BLUEBERRY_REPLAY_RESULTS.zip",
+    "size_bytes": 483289,
+    "broker_tick_period_utc": {
+      "from": "2024-12-17T06:39:39.055000+00:00",
+      "to": "2026-08-25T23:58:59.832000+00:00"
+    },
+    "broker": "Blueberry Markets Pty Ltd",
+    "server": "BlueberryMarkets-Demo",
+    "account_currency": "SGD",
+    "symbol": "XAUUSD.i",
+    "leverage": 500,
+    "lot_size": 0.01,
+    "contract_size_oz_per_lot": 100.0,
+    "buy_entry_quote": "ASK",
+    "buy_exit_quote": "BID",
+    "sell_entry_quote": "BID",
+    "sell_exit_quote": "ASK",
+    "one_active_setup_at_a_time": true,
+    "pending_ttl_minutes": 180,
+    "commission_usd_round_trip_used_by_source_replay": 0.07,
+    "fx_source_used_by_source_replay": "Blueberry_MT5_USDSGD.i_D1"
+  },
+  "fixed_depth_0p75_source_result_sgd1000": {
+    "starting_balance_sgd": 1000.0,
+    "final_balance_sgd": 1007.571385399971,
+    "net_pnl_sgd": 7.57138539997095,
+    "total_return_pct": 0.7571385399971042,
+    "eligible_signals": 3068,
+    "accepted_setups": 1981,
+    "skipped_while_busy": 1087,
+    "filled_trades": 674,
+    "wins": 228,
+    "losses": 446,
+    "win_rate_excluding_be_pct": 33.82789317507419,
+    "positive_months": 10,
+    "negative_months": 11,
+    "median_monthly_return_pct": -0.6004337429462167,
+    "worst_month_pct": -14.404970771633163,
+    "max_realized_drawdown_sgd": 262.13894970001013,
+    "max_realized_drawdown_pct": 24.281996928242698,
+    "minimum_mark_to_market_equity_sgd": 489.10829779997476,
+    "approx_probable_stopout": false
+  },
+  "first_partial_month_fixed_depth_0p75": {
+    "month": "2024-12",
+    "starting_balance_sgd_in_source_replay": 1000.0,
+    "pnl_sgd": -16.06631900000059,
+    "trades": 12,
+    "source_end_balance_sgd": 983.9336809999994
+  },
+  "s100_fixed_ticket_invariance_check": {
+    "starting_balance_sgd": 100.0,
+    "high_water_drawdown_shutdown_fraction": 0.15,
+    "initial_shutdown_floor_sgd": 85.0,
+    "same_0p01_ticket_same_dollar_pnl_assumption": true,
+    "counterfactual_balance_after_first_partial_month_if_same_fixed_depth_stream_continued_without_shutdown_sgd": 83.93368099999941,
+    "proof": "Because high-water equity is at least the initial SGD100, the 15% high-water shutdown floor is at least SGD85. The same fixed 0.01 ticket stream loses SGD16.066319 in the first partial month, placing equity below SGD85. Therefore that exact fixed-depth stream must cross the 15% shutdown boundary on or before month-end if run from SGD100.",
+    "fixed_depth_0p75_s100_verdict": "DISQUALIFIED_BY_15PCT_HIGH_WATER_DRAWDOWN_GATE"
+  },
+  "important_scope_guard": {
+    "adaptive_v55_5pct_risk_filtered_stream_evaluated": false,
+    "reason": "V5.5 changes the admitted opportunity stream by rejecting setups whose reserved stop risk exceeds 5% of current equity and by applying additional survival gates. The fixed-depth replay cannot be relabelled as the adaptive V5.5 replay.",
+    "adaptive_v55_s100_verdict": "UNSCORED_REQUIRES_PER_TRADE_BROKER_TICK_REPLAY"
+  },
+  "promotion": {
+    "historical_profitability_certified": false,
+    "s100_survival_certified": false,
+    "prospective_certified": false,
+    "live_ready": false,
+    "real_orders_authorized": false
+  }
+}
