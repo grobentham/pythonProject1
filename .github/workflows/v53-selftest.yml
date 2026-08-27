@@ -1,0 +1,27 @@
+name: V5.3 Self Test
+
+on:
+  push:
+    branches:
+      - xauusd-provider-faithful-v5-3
+  workflow_dispatch:
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test dependency
+        run: python -m pip install --disable-pip-version-check numpy==1.26.4
+      - name: Compile V5.3 modules
+        run: |
+          python -m py_compile v53_policy.py
+          python -m py_compile v53_engine.py
+          python -m py_compile v53_engine_patch.py
+          python -m py_compile replay_blueberry_telegram_v5_3.py
+          python -m py_compile test_v53_policy.py
+      - name: Run semantic tests
+        run: python test_v53_policy.py
