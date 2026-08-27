@@ -1,0 +1,37 @@
+name: XAUUSD V5.5 Certification Self-Test
+
+on:
+  push:
+    branches:
+      - xauusd-v5.5-forensic-certification
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile certification source
+        run: python -m compileall -q xauusd_v55
+      - name: Run V5.5 standard-library regression suite
+        working-directory: xauusd_v55
+        run: python -m unittest -v test_v55_certification.py
+      - name: Prove policy remains non-authorizing
+        working-directory: xauusd_v55
+        run: |
+          python - <<'PY'
+          import json
+          p=json.load(open('v55_policy.json', encoding='utf-8'))
+          assert p['execution']['real_orders'] is False
+          assert p['execution']['order_authorization'] is False
+          assert p['live_ready_state_exists'] is False
+          assert p['frozen_provider_plan']['strategy_mutation_authorized'] is False
+          print('V5.5 NON-AUTHORIZING POLICY: PASS')
+          PY
