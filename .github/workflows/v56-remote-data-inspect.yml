@@ -1,0 +1,42 @@
+name: V5.6 Remote Replay Data Inspect
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - xauusd-v5.6-provider-canonical
+    paths:
+      - '.github/workflows/v56-remote-data-inspect.yml'
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Fetch preserved replay-input branch
+        run: |
+          git fetch origin chatgpt-xauusd-replay-20260826:refs/remotes/origin/replay-input
+          git checkout refs/remotes/origin/replay-input -- xauusd_replay
+      - name: Decode tables and inspect
+        run: |
+          python - <<'PY'
+          import base64, gzip, pathlib, csv, collections, json
+          root=pathlib.Path('xauusd_replay')
+          for pattern,dst in [('signals_*.b64part','signals.csv'),('management_*.b64part','management_compact.csv')]:
+              parts=sorted(root.glob(pattern))
+              b64=''.join(p.read_text().strip() for p in parts)
+              data=gzip.decompress(base64.b64decode(b64))
+              path=root/dst
+              path.write_bytes(data)
+              with path.open(encoding='utf-8-sig', newline='') as f:
+                  rows=list(csv.DictReader(f))
+              print('\n###', dst)
+              print('rows',len(rows))
+              print('columns', list(rows[0]) if rows else [])
+              for r in rows[:8]: print(json.dumps(r, ensure_ascii=False))
+              for field in ('side','kind','action','status','management_type','type'):
+                  if rows and field in rows[0]:
+                      print(field, collections.Counter(r.get(field,'') for r in rows).most_common(30))
+          PY
