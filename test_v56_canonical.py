@@ -150,7 +150,7 @@ def test_engine_market_now_is_one_ticket_not_whole_zone():
     e._arm_round(ins, 1000, 100.0, 100.1)
     assert len(e.tickets) == 1
     assert e.tickets[0].state == "OPEN"
-    assert e.tickets[0].fill_price == 100.1
+    assert abs(e.tickets[0].fill_price - 100.1) <= e.spec.tick_size / 10
 
 
 def test_engine_single_tp_closes_remaining_exposure_only_at_final_tp():
