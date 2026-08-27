@@ -129,19 +129,26 @@ def explicit_provider_entries(ins, side: Optional[str], zone_low=None, zone_high
 
     text = instruction_text(ins)
     values: List[float] = []
-    if "entry" in text.lower():
+    entry_word = re.compile(r"(?i)\bentr(?:y|ies)\b")
+    if entry_word.search(text):
         for line in re.split(r"[\n;]+", text):
             low = line.lower()
-            if "entry" in low and not re.search(r"\b(?:sl|stop|tp|take profit)\b", low):
+            if entry_word.search(line) and not re.search(r"\b(?:sl|stop|tp|take profit)\b", low):
                 values.extend(list_floats(line))
 
+    # Strong compact forms such as BUY 4625 / 4624 / 4623. This is only
+    # considered when the side is explicit and the extracted values lie inside
+    # the stated provider zone below.
     if not values and side:
-        match = re.search(
-            rf"(?i)\b{side}\b[^\n]{{0,30}}?([1-9]\d{{3}}(?:\.\d+)?)\s*[/,]\s*([1-9]\d{{3}}(?:\.\d+)?)",
-            text,
-        )
-        if match:
-            values = [float(match.group(1)), float(match.group(2))]
+        for line in re.split(r"[\n;]+", text):
+            if not re.search(rf"(?i)\b{re.escape(side)}\b", line):
+                continue
+            if re.search(r"(?i)\b(?:sl|stop|tp|take profit)\b", line):
+                continue
+            vals = list_floats(line)
+            if len(vals) >= 2:
+                values.extend(vals)
+                break
 
     values = list(dict.fromkeys(values))
     if zone_low is not None and zone_high is not None:
