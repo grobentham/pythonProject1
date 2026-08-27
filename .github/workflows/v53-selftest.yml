@@ -23,6 +23,7 @@ jobs:
           python -m py_compile v53_engine_patch.py
           python -m py_compile replay_blueberry_telegram_v5_3.py
           python -m py_compile test_v53_policy.py
+          python -m py_compile test_v53_layered_intended.py
       - name: Check downside stop risk
         run: python -c "from v53_policy import downside_stop_distance as f; assert [f('BUY',100,95),f('BUY',100,100),f('BUY',100,105),f('SELL',100,105),f('SELL',100,100),f('SELL',100,95)] == [5,0,0,5,0,0]"
       - name: Check limit gap fills
@@ -46,3 +47,5 @@ jobs:
           PY
       - name: Run full semantic tests
         run: python test_v53_policy.py
+      - name: Run provider-intended layered ladder tests
+        run: python test_v53_layered_intended.py
