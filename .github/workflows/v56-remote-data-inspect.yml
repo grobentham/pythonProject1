@@ -72,3 +72,34 @@ jobs:
           print('management first',json.dumps(management[:5],ensure_ascii=False))
           print('management last',json.dumps(management[-5:],ensure_ascii=False))
           PY
+      - name: Inspect preserved replay loader without executing it
+        run: |
+          python - <<'PY'
+          import base64,pathlib,re
+          root=pathlib.Path('xauusd_replay')
+          names=['replay_00.b64part','replay_01.b64part']
+          src=base64.b64decode(''.join((root/n).read_text().strip() for n in names),validate=True).decode('utf-8')
+          lines=src.splitlines()
+          print('REPLAY_SOURCE_LINES',len(lines))
+          for i,line in enumerate(lines,1):
+              if any(k in line for k in ('read_csv','def load','def replay','bid','ask','commission','SGD','margin','stopout','START','initial_balance')):
+                  print(f'{i:04d}: {line}')
+          print('--- SOURCE HEAD ---')
+          for i,line in enumerate(lines[:280],1):
+              print(f'{i:04d}: {line}')
+          PY
+      - name: Inspect public M1 Bid Ask schema
+        run: |
+          python - <<'PY'
+          import urllib.request,pathlib
+          base='https://raw.githubusercontent.com/kevingtlin/Market-Data-Lab/main/xauusd/{side}/m1/xauusd_{side}_m1_2023_05.csv'
+          for side in ('bid','ask'):
+              p=pathlib.Path(f'/tmp/{side}.csv')
+              urllib.request.urlretrieve(base.format(side=side),p)
+              print('---',side,p.stat().st_size,'bytes ---')
+              with p.open(encoding='utf-8-sig',errors='replace') as f:
+                  for _ in range(6):
+                      line=f.readline()
+                      if not line: break
+                      print(line.rstrip())
+          PY
