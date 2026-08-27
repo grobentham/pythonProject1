@@ -1,0 +1,130 @@
+name: V5.6 Blueberry Date-Aligned Public M1 Proxy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - xauusd-v5.6-provider-canonical
+    paths:
+      - '.github/workflows/v56-blueberry-date-aligned-proxy.yml'
+
+jobs:
+  aligned:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check pandas numpy
+      - name: Reconstruct frozen compact provider inputs
+        run: |
+          git fetch origin chatgpt-xauusd-replay-20260826:refs/remotes/origin/replay-input
+          git checkout refs/remotes/origin/replay-input -- xauusd_replay
+          python - <<'PY'
+          import base64,gzip,pathlib,hashlib,csv
+          from datetime import datetime,timezone
+          root=pathlib.Path('xauusd_replay')
+          sig=[f'signals_{i:02d}.b64part' for i in range(4)]+['signals_04a.b64part','signals_04b.b64part','signals_04c.b64part','signals_05.b64part']
+          mg=['management_00.b64part','management_01.b64part','management_02.b64part']
+          def decode(names,expected):
+              raw=base64.b64decode(''.join((root/n).read_text().strip() for n in names),validate=True)
+              got=hashlib.sha256(raw).hexdigest(); assert got==expected,(got,expected)
+              return gzip.decompress(raw)
+          sig_data=decode(sig,'f472ccad02aaef9c3a18f511263b35e3e0d8d1b0c9dc43a637f535df4ea705ad')
+          mg_data=decode(mg,'0b05c33cf080c6ee532658f408a069a5bced789e8a61403c8f88410835404090')
+          (root/'signals_full.csv').write_bytes(sig_data)
+          (root/'management_full.csv').write_bytes(mg_data)
+
+          boundary=datetime.fromisoformat('2024-12-17T06:39:39.055+00:00')
+          def dt(s):
+              d=datetime.fromisoformat(s.replace('Z','+00:00'))
+              return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+          sig_rows=list(csv.DictReader(sig_data.decode('utf-8-sig').splitlines()))
+          kept=[r for r in sig_rows if dt(r['time_utc'])>=boundary]
+          uids={r['uid'] for r in kept}
+          with (root/'signals.csv').open('w',newline='',encoding='utf-8') as f:
+              w=csv.DictWriter(f,fieldnames=sig_rows[0].keys());w.writeheader();w.writerows(kept)
+
+          mg_rows=list(csv.DictReader(mg_data.decode('utf-8-sig').splitlines()))
+          kept_m=[r for r in mg_rows if r['root_uid'] in uids and dt(r['time_utc'])>=boundary]
+          with (root/'management_compact.csv').open('w',newline='',encoding='utf-8') as f:
+              w=csv.DictWriter(f,fieldnames=mg_rows[0].keys());w.writeheader();w.writerows(kept_m)
+          print('BOUNDARY',boundary.isoformat())
+          print('SIGNALS_FULL',len(sig_rows),'SIGNALS_ALIGNED',len(kept))
+          print('MANAGEMENT_FULL',len(mg_rows),'MANAGEMENT_ALIGNED',len(kept_m))
+          print('FIRST_SIGNAL',kept[0]['time_utc'] if kept else None)
+          print('LAST_SIGNAL',kept[-1]['time_utc'] if kept else None)
+          PY
+      - name: Download public M1 Bid Ask data
+        run: |
+          python - <<'PY'
+          from concurrent.futures import ThreadPoolExecutor,as_completed
+          import pathlib,time,urllib.request
+          root=pathlib.Path('xauusd_replay/data')
+          for s in ('bid','ask'):(root/s).mkdir(parents=True,exist_ok=True)
+          months=[]; y,m=2023,5
+          while (y,m)<=(2026,8):
+              months.append((y,m));m+=1
+              if m==13:y+=1;m=1
+          jobs=[(f'https://raw.githubusercontent.com/kevingtlin/Market-Data-Lab/main/xauusd/{s}/m1/xauusd_{s}_m1_{y:04d}_{m:02d}.csv',root/s/f'xauusd_{s}_m1_{y:04d}_{m:02d}.csv') for s in ('bid','ask') for y,m in months]
+          def get(j):
+              url,out=j
+              for k in range(5):
+                  try:
+                      urllib.request.urlretrieve(url,out)
+                      if out.stat().st_size<1000: raise RuntimeError('small')
+                      return out.stat().st_size
+                  except Exception:
+                      if k==4: raise
+                      time.sleep(2*(k+1))
+          total=0
+          with ThreadPoolExecutor(max_workers=8) as ex:
+              for i,f in enumerate(as_completed([ex.submit(get,j) for j in jobs]),1):
+                  total+=f.result()
+                  if i%20==0 or i==len(jobs): print('downloaded',i,'bytes',total,flush=True)
+          PY
+      - name: Compile frozen engines
+        run: python -m py_compile v56_public_m1_account_survival.py v56_public_m1_risk10_survival.py
+      - name: Run raw canonical lane
+        run: |
+          python v56_public_m1_account_survival.py
+          mkdir -p xauusd_replay/v56_coverage_aligned/raw
+          cp xauusd_replay/v56_account_survival_output/* xauusd_replay/v56_coverage_aligned/raw/
+      - name: Run frozen 10pct risk lane
+        run: |
+          python v56_public_m1_risk10_survival.py
+          mkdir -p xauusd_replay/v56_coverage_aligned/risk10
+          cp xauusd_replay/v56_risk10_survival_output/* xauusd_replay/v56_coverage_aligned/risk10/
+      - name: Build combined frozen summary
+        run: |
+          python - <<'PY'
+          import json,pathlib,hashlib
+          root=pathlib.Path('xauusd_replay/v56_coverage_aligned')
+          raw=json.loads((root/'raw/summary.json').read_text())
+          risk=json.loads((root/'risk10/summary.json').read_text())
+          out={
+            'schema':'V56_BLUEBERRY_DATE_ALIGNED_PUBLIC_M1_PROXY_V1',
+            'classification':'BLUEBERRY_DATE_ALIGNED_PUBLIC_M1_PROXY_NOT_BLUEBERRY_TICK_CERTIFICATION',
+            'boundary_utc':'2024-12-17T06:39:39.055Z',
+            'starting_balance_sgd_each_lane':1000.0,
+            'raw':raw,
+            'risk10':risk,
+            'real_orders':False,
+            'live_ready':False,
+            'no_hindsight_rule':'Both lanes frozen and reported; neither may replace the other.'
+          }
+          p=root/'combined_summary.json';p.write_text(json.dumps(out,indent=2),encoding='utf-8')
+          print(json.dumps(out,indent=2))
+          print('COMBINED_SHA256',hashlib.sha256(p.read_bytes()).hexdigest())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V56_BLUEBERRY_DATE_ALIGNED_PUBLIC_M1_PROXY
+          path: xauusd_replay/v56_coverage_aligned/
+          retention-days: 7
