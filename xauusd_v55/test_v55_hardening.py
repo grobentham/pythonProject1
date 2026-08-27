@@ -63,7 +63,8 @@ class V55HardeningTests(unittest.TestCase):
                     pw.writerow({"message_id": i, "predicted_action": "CLOSE_ALL", "predicted_scope": "REPLY_TARGET", "executable": "true"})
             ok = certify_semantics_strict(labels, preds, self.policy)
             self.assertEqual(ok["status"], "PASS")
-            rows = list(csv.DictReader(preds.open(encoding="utf-8")))
+            with preds.open(encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
             rows[0]["predicted_action"] = "MOVE_SL_TO_BE"
             with preds.open("w", newline="", encoding="utf-8") as f:
                 w = csv.DictWriter(f, fieldnames=["message_id", "predicted_action", "predicted_scope", "executable"]); w.writeheader(); w.writerows(rows)
