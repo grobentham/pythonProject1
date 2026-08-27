@@ -19,50 +19,56 @@ jobs:
         run: |
           git fetch origin chatgpt-xauusd-replay-20260826:refs/remotes/origin/replay-input
           git checkout refs/remotes/origin/replay-input -- xauusd_replay
-      - name: Decode tables and inspect
+      - name: Resolve duplicate part variants and inspect tables
         run: |
           python - <<'PY'
-          import base64, gzip, pathlib, csv, collections, json, hashlib, zlib, struct
+          import base64,gzip,pathlib,csv,collections,json,hashlib
           root=pathlib.Path('xauusd_replay')
 
-          def decode_parts(pattern):
-              parts=sorted(root.glob(pattern))
-              if not parts:
-                  raise RuntimeError(f'No parts for {pattern}')
-              print(pattern, 'parts', [(p.name,p.stat().st_size) for p in parts])
-              b64=''.join(p.read_text().strip() for p in parts)
-              raw=base64.b64decode(b64, validate=True)
-              print(pattern, 'compressed_bytes', len(raw), 'sha256', hashlib.sha256(raw).hexdigest())
+          def decode_named(names):
+              b64=''.join((root/n).read_text().strip() for n in names)
+              raw=base64.b64decode(b64,validate=True)
               try:
-                  return gzip.decompress(raw), 'GZIP_CRC_OK'
-              except gzip.BadGzipFile as exc:
-                  print(pattern, 'gzip_crc_warning', repr(exc))
-                  if raw[:2] != b'\x1f\x8b':
-                      raise
-                  # Standard gzip stream: fixed 10-byte header in these frozen files,
-                  # 8-byte CRC/ISIZE trailer. Recover deflate payload without trusting
-                  # the stale trailer, then validate the resulting CSV structurally.
-                  data=zlib.decompress(raw[10:-8], -zlib.MAX_WBITS)
-                  expected_isize=struct.unpack('<I', raw[-4:])[0]
-                  print(pattern, 'recovered_bytes',len(data),'trailer_isize',expected_isize,
-                        'recovered_sha256',hashlib.sha256(data).hexdigest())
-                  return data, 'RECOVERED_IGNORE_STALE_GZIP_CRC'
+                  data=gzip.decompress(raw)
+                  return True,data,hashlib.sha256(raw).hexdigest(),None
+              except Exception as e:
+                  return False,b'',hashlib.sha256(raw).hexdigest(),repr(e)
 
-          for pattern,dst in [('signals_*.b64part','signals.csv'),('management_*.b64part','management_compact.csv')]:
-              data,status=decode_parts(pattern)
-              path=root/dst
-              path.write_bytes(data)
-              with path.open(encoding='utf-8-sig', newline='') as f:
-                  rows=list(csv.DictReader(f))
-              if not rows:
-                  raise RuntimeError(f'{dst}: zero rows')
-              if any(None in r for r in rows[:100]):
-                  raise RuntimeError(f'{dst}: malformed CSV rows')
-              print('\n###', dst, status)
-              print('rows',len(rows))
-              print('columns', list(rows[0]))
-              for r in rows[:8]: print(json.dumps(r, ensure_ascii=False))
-              for field in ('side','kind','action','status','management_type','type'):
-                  if field in rows[0]:
-                      print(field, collections.Counter(r.get(field,'') for r in rows).most_common(30))
+          variants={
+              'A_original_04': [f'signals_{i:02d}.b64part' for i in range(4)] + ['signals_04.b64part','signals_05.b64part'],
+              'B_split_04abc': [f'signals_{i:02d}.b64part' for i in range(4)] + ['signals_04a.b64part','signals_04b.b64part','signals_04c.b64part','signals_05.b64part'],
+          }
+          winner=None
+          for name,names in variants.items():
+              ok,data,sha,err=decode_named(names)
+              print(name,'ok',ok,'compressed_sha256',sha,'bytes',len(data),'err',err)
+              if ok:
+                  text=data.decode('utf-8-sig')
+                  rows=list(csv.DictReader(text.splitlines()))
+                  invalid=sum(1 for r in rows if r.get('side') not in {'BUY','SELL'})
+                  malformed=sum(1 for r in rows if None in r)
+                  print(name,'rows',len(rows),'invalid_side',invalid,'malformed',malformed,'columns',list(rows[0]) if rows else [])
+                  print(name,'first',json.dumps(rows[:3],ensure_ascii=False))
+                  print(name,'last',json.dumps(rows[-3:],ensure_ascii=False))
+                  if invalid==0 and malformed==0 and rows:
+                      if winner is not None:
+                          raise RuntimeError('More than one structurally valid signal reconstruction; freeze requires explicit disambiguation')
+                      winner=(name,data,rows,sha)
+          if winner is None:
+              raise RuntimeError('No CRC-valid structurally clean signal reconstruction')
+          name,data,signals,sha=winner
+          (root/'signals.csv').write_bytes(data)
+          print('SIGNALS_WINNER',name,'rows',len(signals),'raw_compressed_sha256',sha)
+          print('signals_side',collections.Counter(r['side'] for r in signals))
+
+          mgmt_names=['management_00.b64part','management_01.b64part','management_02.b64part']
+          ok,data,msha,err=decode_named(mgmt_names)
+          if not ok: raise RuntimeError(f'management decode failed: {err}')
+          management=list(csv.DictReader(data.decode('utf-8-sig').splitlines()))
+          if not management or any(None in r for r in management): raise RuntimeError('management malformed')
+          (root/'management_compact.csv').write_bytes(data)
+          print('MANAGEMENT rows',len(management),'compressed_sha256',msha,'columns',list(management[0]))
+          print('management_action_sets',collections.Counter(r['actions'] for r in management).most_common(20))
+          print('management first',json.dumps(management[:5],ensure_ascii=False))
+          print('management last',json.dumps(management[-5:],ensure_ascii=False))
           PY
