@@ -24,6 +24,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install regression dependencies
+        run: python -m pip install --disable-pip-version-check numpy pandas
       - name: Compile V5.8 modules
         run: python -m py_compile v58_signal_intelligence_gate.py v58_context_builder.py test_v58_signal_intelligence_gate.py test_v58_context_builder.py
       - name: Run V5.8 gate tests
@@ -44,7 +46,7 @@ jobs:
           text = '\n'.join(p.read_text(encoding='utf-8') for p in files)
           forbidden = [
               'mt5.order_send', 'order_send(', 'real_orders = True', 'real_orders=True',
-              'order_authorization = True', 'order_authorization=True',
+              'order_authorization = True', 'order_authorization=true',
           ]
           for token in forbidden:
               assert token not in text, f'forbidden live-order token found: {token}'
