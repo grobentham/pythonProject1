@@ -12,10 +12,39 @@ from pathlib import Path
 
 from v53_engine_patch import apply_v53_integrity_patch
 from v56_engine import V56CanonicalEngine
+from v56_engine_hardening import apply_v56_semantic_hardening
 
 VERSION = "V5.6_PROVIDER_CANONICAL_INTERPRETATION"
-OUT_NAME = "XAUUSD_BLUEBERRY_PROVIDER_CANONICAL_V5_6_RESULTS"
+BASE_OUT_NAME = "XAUUSD_BLUEBERRY_PROVIDER_CANONICAL_V5_6_RESULTS"
 LAST_ENGINE = None
+ACTIVE_PROFILE = None
+ACTIVE_OUT_NAME = None
+
+PROFILES = {
+    # This is the primary answer to "how did the provider perform on S$1,000?"
+    # It follows canonical provider-authorized 0.01 tickets and broker margin,
+    # without silently filtering trades through our research risk cap.
+    "CANONICAL_PROVIDER_SGD1000": {
+        "starting_balance_sgd": 1000.0,
+        "risk_cap_enabled": False,
+        "profile_role": "RAW_PROVIDER_CANONICAL_PRIMARY",
+    },
+    # Secondary safety-overlay diagnostic. It must never replace the raw-provider
+    # result merely because one profile performs better historically.
+    "CANONICAL_SURVIVAL_SGD1000": {
+        "starting_balance_sgd": 1000.0,
+        "risk_cap_enabled": True,
+        "max_reserved_stop_risk_pct": 10.0,
+        "profile_role": "RISK_CONSTRAINED_SECONDARY",
+    },
+}
+
+
+def selected_profile():
+    name = os.environ.get("V56_PROFILE", "CANONICAL_PROVIDER_SGD1000").strip().upper()
+    if name not in PROFILES:
+        raise ValueError(f"Unknown V56_PROFILE={name!r}; choose one of {sorted(PROFILES)}")
+    return name, dict(PROFILES[name])
 
 
 def find_v52_source() -> Path:
@@ -90,6 +119,8 @@ def write_v56_extras(engine):
     summary.update({
         "canonical_interpretation_frozen_before_pnl": True,
         "provider_language_spec": "PROVIDER_LANGUAGE_CANONICAL_V5_6.md",
+        "historical_test_profile": ACTIVE_PROFILE,
+        "historical_test_profile_config": PROFILES.get(ACTIVE_PROFILE, {}),
         "historical_only": True,
         "real_orders": False,
         "live_ready": False,
@@ -113,12 +144,12 @@ def write_v56_extras(engine):
             writer.writerows(engine.audit)
 
     (out / "V56_CANONICAL_FROZEN.txt").write_text(
-        "V5.6 canonical provider interpretation was frozen before this P&L run.\n"
+        f"V5.6 canonical provider interpretation was frozen before this P&L run.\nProfile: {ACTIVE_PROFILE}\n"
         "Historical research only. Real orders disabled.\n",
         encoding="utf-8",
     )
 
-    result_zip = desktop / f"{OUT_NAME}.zip"
+    result_zip = desktop / f"{ACTIVE_OUT_NAME}.zip"
     if result_zip.exists():
         result_zip.unlink()
     with zipfile.ZipFile(result_zip, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
@@ -130,9 +161,13 @@ def write_v56_extras(engine):
 
 
 def main():
-    global LAST_ENGINE
+    global LAST_ENGINE, ACTIVE_PROFILE, ACTIVE_OUT_NAME
+    ACTIVE_PROFILE, profile_cfg = selected_profile()
+    ACTIVE_OUT_NAME = f"{BASE_OUT_NAME}_{ACTIVE_PROFILE}"
+
     v52_source = find_v52_source()
     print(f"[V5.6] Frozen provider-language compiler: {v52_source}", flush=True)
+    print(f"[V5.6] Historical profile: {ACTIVE_PROFILE} {profile_cfg}", flush=True)
     print("[V5.6] Canonical semantics: TWO_BOUNDARY_ZONE / SINGLE_TP_DYNAMIC / EXPLICIT_MULTI_TP / OR_CLOSE_ALL", flush=True)
 
     spec = importlib.util.spec_from_file_location("v52_core_v56", v52_source)
@@ -142,19 +177,36 @@ def main():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
 
-    PatchedCanonicalEngine = apply_v53_integrity_patch(V56CanonicalEngine)
+    HardenedCanonicalEngine = apply_v56_semantic_hardening(V56CanonicalEngine)
+    PatchedCanonicalEngine = apply_v53_integrity_patch(HardenedCanonicalEngine)
 
     class CapturingV56Engine(PatchedCanonicalEngine):
         def __init__(self, *args, **kwargs):
             global LAST_ENGINE
             super().__init__(*args, **kwargs)
+            # The parent compiler may supply its own research policy. The V5.6
+            # profile is frozen later in the stack so the primary provider run
+            # cannot accidentally inherit the old 10% research filter.
+            merged = dict(self.policy) if isinstance(self.policy, dict) else {}
+            merged.update(profile_cfg)
+            self.policy = merged
+            start = float(profile_cfg["starting_balance_sgd"])
+            self.cash = start
+            self.starting_balance_sgd = start
+            self.peak_equity = start
+            self.min_equity_sgd = start
+            self.max_equity_sgd = start
+            self.peak = start
+            self.max_drawdown_sgd = 0.0
+            self.max_dd = 0.0
+            self.max_drawdown = 0.0
             LAST_ENGINE = self
 
     module.PortfolioEngine = CapturingV56Engine
     if hasattr(module, "VERSION"):
         module.VERSION = VERSION
     if hasattr(module, "OUT_NAME"):
-        module.OUT_NAME = OUT_NAME
+        module.OUT_NAME = ACTIVE_OUT_NAME
 
     forwarded = extract_v52_runner_args(v52_source)
     print(f"[V5.6] Forwarded frozen compiler arguments: {forwarded}", flush=True)
