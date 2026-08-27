@@ -23,22 +23,29 @@ jobs:
           python -m py_compile v53_engine_patch.py
           python -m py_compile v56_canonical_policy.py
           python -m py_compile v56_engine.py
+          python -m py_compile v56_engine_hardening.py
           python -m py_compile replay_blueberry_telegram_v5_6_canonical.py
           python -m py_compile test_v53_policy.py
           python -m py_compile test_v53_layered_intended.py
           python -m py_compile test_v56_canonical.py
+          python -m py_compile test_v56_hardening.py
       - name: Legacy V5.3 semantic regression
         run: python test_v53_policy.py
       - name: Legacy execution-mechanics regression
         run: python test_v53_layered_intended.py
       - name: V5.6 canonical provider interpretation
         run: python test_v56_canonical.py
+      - name: V5.6 named-entry and profile hardening
+        run: python test_v56_hardening.py
       - name: Non-authorizing assertions
         run: |
           python - <<'PY'
           from pathlib import Path
+          import replay_blueberry_telegram_v5_6_canonical as runner
           from v56_canonical_policy import OR_PRIMARY_POLICY
           assert OR_PRIMARY_POLICY == 'CLOSE_ALL'
+          assert runner.PROFILES['CANONICAL_PROVIDER_SGD1000']['risk_cap_enabled'] is False
+          assert runner.PROFILES['CANONICAL_SURVIVAL_SGD1000']['max_reserved_stop_risk_pct'] == 10.0
           spec = Path('PROVIDER_LANGUAGE_CANONICAL_V5_6.md').read_text(encoding='utf-8')
           assert 'real_orders = false' in spec
           assert 'live_ready = false' in spec
